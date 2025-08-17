@@ -7,7 +7,7 @@ import (
 )
 
 // Change to true if needed.
-var taskWithAsteriskIsCompleted = false
+var taskWithAsteriskIsCompleted = true
 
 var text = `Как видите, он  спускается  по  лестнице  вслед  за  своим
 	другом   Кристофером   Робином,   головой   вниз,  пересчитывая
@@ -43,12 +43,21 @@ var text = `Как видите, он  спускается  по  лестни�
 	посидеть у огня и послушать какую-нибудь интересную сказку.
 		В этот вечер...`
 
+var shortText = `
+	word1, word1, word1, word1, word1, word1, word1, word1, word1, word1, word1, word1,
+	word7 word7 word7 word7
+	word8   	word8   	word8
+	word9, word9, 
+	word10 word10
+	- - -
+`
+
 func TestTop10(t *testing.T) {
 	t.Run("no words in empty string", func(t *testing.T) {
 		require.Len(t, Top10(""), 0)
 	})
 
-	t.Run("positive test", func(t *testing.T) {
+	t.Run("Positive test 1. Words in the final sample are greater than or equal to 10", func(t *testing.T) {
 		if taskWithAsteriskIsCompleted {
 			expected := []string{
 				"а",         // 8
@@ -77,6 +86,28 @@ func TestTop10(t *testing.T) {
 				"то",        // 4
 			}
 			require.Equal(t, expected, Top10(text))
+		}
+	})
+	t.Run("Positive test 2. Words in the final sample are less than 10", func(t *testing.T) {
+		if taskWithAsteriskIsCompleted {
+			expected := []string{
+				"word1",
+				"word7",
+				"word8",
+				"word10",
+				"word9",
+			}
+			require.Equal(t, expected, Top10(shortText))
+		} else {
+			expected := []string{
+				"word1,",
+				"word7",
+				"-",
+				"word8",
+				"word10",
+				"word9,",
+			}
+			require.Equal(t, expected, Top10(shortText))
 		}
 	})
 }
