@@ -1,4 +1,4 @@
-module github.com/fixme_my_friend/hw02_unpack_string
+module github.com/j85529016-prog/GoProf_01/hw02_unpack_string
 
 go 1.23
 
