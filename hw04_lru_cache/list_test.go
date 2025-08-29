@@ -1,6 +1,7 @@
 package hw04lrucache
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -47,5 +48,21 @@ func TestList(t *testing.T) {
 			elems = append(elems, i.Value.(int))
 		}
 		require.Equal(t, []int{70, 80, 60, 40, 10, 30, 50}, elems)
+	})
+
+	t.Run("relations between elements", func(t *testing.T) {
+		list := NewList()
+		elementForRemove := list.PushBack("A")       // "A"
+		list.PushBack("B")                           // "A ↔ B"
+		elementForMoveToFront := list.PushFront("C") // "C ↔ A ↔ B"
+		list.PushBack(123)                           // "C ↔ A ↔ B ↔ 123"
+		list.PushFront(1)                            // "1 ↔ C ↔ A ↔ B ↔ 123"
+		list.Remove(elementForRemove)                // "1 ↔ C ↔ B ↔ 123"
+		list.MoveToFront(elementForMoveToFront)      // "C ↔ 1 ↔ B ↔ 123"
+		list.MoveToFront(list.Back())                // "123 ↔ C ↔ 1 ↔ B"
+		require.Equal(t, list.Back().Value, "B")
+		require.Equal(t, list.Front().Value, 123)
+		require.Equal(t, list.Len(), 4)
+		require.Equal(t, fmt.Sprint(list), "123 ↔ C ↔ 1 ↔ B")
 	})
 }
