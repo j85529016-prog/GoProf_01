@@ -3,6 +3,7 @@ package hw05parallelexecution
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 )
 
 var (
@@ -11,18 +12,11 @@ var (
 	ErrWrongCountOfErrors     = errors.New("error: parametr m must be >= 0")
 )
 
-type counterErrors struct {
-	counter int
-	mutex   sync.Mutex
-}
 type Task func() error
 
 // Run starts tasks in n goroutines and stops its work when receiving m errors from tasks.
 func Run(tasks []Task, n, m int) error {
-	// n - кол-во одновременно выполняющихся горутин
-	// m - максимальное число ошибок
-
-	// Обрабатываем пограничные случаи
+	// Проверяем пограничные случаи для немедленного завершения функции
 	if n <= 0 {
 		return ErrWrongCountOfGoroutines
 	}
@@ -30,73 +24,57 @@ func Run(tasks []Task, n, m int) error {
 		return ErrWrongCountOfErrors
 	}
 
-	// Создаем структуру с мьютексом для записи кол-ва ошибок
-	counterErrors := counterErrors{}
+	// Берем в переменную общее число тасок
+	countTasksTotal := len(tasks)
 
-	// Слайс с группами количества горутин одновременного выполнения для последовательного запуска в количестве <=n
-	groupsCountTasks := getIntParts(len(tasks), n)
+	// Cоздаем канал тасок, заполняем и закрываем его (чтобы при чтении из канала не возник deadlock)
+	tasksCh := make(chan Task, countTasksTotal)
+	for _, t := range tasks {
+		tasksCh <- t
+	}
+	close(tasksCh)
 
-	// Итерируемся по группам кол-ва горутин для запуска
-	counter := -1
-	for _, v := range groupsCountTasks {
+	// Определяем кол-во групп тасок
+	var countGroups int
+	if countTasksTotal-countTasksTotal/n == 0 {
+		countGroups = countTasksTotal / n
+	} else {
+		countGroups = countTasksTotal/n + 1
+	}
+
+	// Cоздаем atomic счетчик ошибок
+	var counterErrors int32
+
+	// Итерируемся по группам тасок, запуская их в горутинах
+	for i := range countGroups {
+		// Определяем число тасок в текущей группе
+		countTasksInCurrentgroup := min(countTasksTotal-i*n, n)
+
 		var wg sync.WaitGroup
-		wg.Add(v)
-		// Итерируемся по таскам
-		for j := 1; j <= v; j++ {
-			// Номер таски по проядку в первоначальном слайсе
-			counter++
 
+		for range countTasksInCurrentgroup {
 			// Оборачиваем таску в доп. логику
-			task := func(numberTask int, wg *sync.WaitGroup) {
-				err := tasks[numberTask]()
-				// Если таска вернула ошибку - изменяем счетчик ошибок
+			taskExt := func() {
+				defer wg.Done()
+				// Считываем функцию из канала и запускаем ее
+				taskToRun := <-tasksCh
+				err := taskToRun()
+				// Если таска вернула ошибку - увеличиваем атомарный счетчик ошибок
 				if err != nil {
-					counterErrorsAdd(&counterErrors)
+					atomic.AddInt32(&counterErrors, 1)
 				}
-				wg.Done()
 			}
 
-			// Если не достигли лимита по ошибкам - запускаем таску, иначе прерываем цикл
-			if !counterErrorsHaveLimit(&counterErrors, m) {
-				go task(counter, &wg)
+			// Если не превысили лимит по ошибкам - запускаем горутину таски, иначе прерываем цикл
+			if int(atomic.LoadInt32(&counterErrors)) <= m {
+				wg.Add(1)
+				go taskExt()
 			} else {
-				break
+				return ErrErrorsLimitExceeded
 			}
 		}
 		wg.Wait()
-		if counterErrorsHaveLimit(&counterErrors, m) {
-			return ErrErrorsLimitExceeded
-		}
 	}
 
 	return nil
-}
-
-func getIntParts(countAll, countInPart int) []int {
-	result := make([]int, 0)
-	intParts := countAll/countInPart + 1
-	for i := 1; i <= intParts; i++ {
-		if i == intParts {
-			result = append(result, countAll-(intParts-1)*countInPart)
-			break
-		}
-		result = append(result, countInPart)
-	}
-	return result
-}
-
-// Потокобезобасно проверяет, достиг ли счетчик ошибок лимита ошибок по их количеству.
-func counterErrorsHaveLimit(mx *counterErrors, limit int) bool {
-	mx.mutex.Lock()
-	defer mx.mutex.Unlock()
-
-	return mx.counter > limit
-}
-
-// Потокобезобасно увеличивает счетчик ошибок.
-func counterErrorsAdd(mx *counterErrors) {
-	mx.mutex.Lock()
-	defer mx.mutex.Unlock()
-
-	mx.counter++
 }
