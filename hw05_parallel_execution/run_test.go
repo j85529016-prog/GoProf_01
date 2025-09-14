@@ -78,22 +78,13 @@ func TestRun(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("incorrect count of errors", func(t *testing.T) {
-		err := Run([]Task{}, 10, -1)
-		require.ErrorAs(t, err, &ErrWrongCountOfErrors)
-		err = Run([]Task{}, 10, 0)
-		require.NoError(t, err)
-		err = Run([]Task{}, 10, 1)
-		require.NoError(t, err)
-	})
-
 	t.Run("complex run", func(t *testing.T) {
 		tasksCount := 50
 		tasks := make([]Task, 0, tasksCount)
 		for i := 1; i <= tasksCount; i++ {
 			taskID := i
 			switch i {
-			case 3, 4, 5, 6, 8, 10:
+			case 5, 10, 15, 20:
 				tasks = append(tasks, func() error {
 					return fmt.Errorf("error in func %v", taskID)
 				})
@@ -104,12 +95,14 @@ func TestRun(t *testing.T) {
 			}
 		}
 		err := Run(tasks, -1, -1)
-		require.Error(t, err)
-		err = Run(tasks, 3, 0)
+		require.ErrorAs(t, err, &ErrWrongCountOfGoroutines)
+		err = Run(tasks, 5, 0)
 		require.ErrorAs(t, err, &ErrErrorsLimitExceeded)
-		err = Run(tasks, 3, 5)
+		err = Run(tasks, 5, -1)
 		require.ErrorAs(t, err, &ErrErrorsLimitExceeded)
-		err = Run(tasks, 3, 6)
+		err = Run(tasks, 20, 4)
+		require.ErrorAs(t, err, &ErrErrorsLimitExceeded)
+		err = Run(tasks, 20, 5)
 		require.NoError(t, err)
 	})
 
