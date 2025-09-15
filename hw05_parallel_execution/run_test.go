@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -66,5 +67,90 @@ func TestRun(t *testing.T) {
 
 		require.Equal(t, int32(tasksCount), runTasksCount, "not all tasks were completed")
 		require.LessOrEqual(t, int64(elapsedTime), int64(sumTime/2), "tasks were run sequentially?")
+	})
+
+	t.Run("incorrect count of goroutines", func(t *testing.T) {
+		err := Run([]Task{}, -1, 10)
+		require.ErrorAs(t, err, &ErrWrongCountOfGoroutines)
+		err = Run([]Task{}, 0, 10)
+		require.ErrorAs(t, err, &ErrWrongCountOfGoroutines)
+		err = Run([]Task{}, 1, 10)
+		require.NoError(t, err)
+	})
+
+	t.Run("complex run", func(t *testing.T) {
+		tasksCount := 50
+		tasks := make([]Task, 0, tasksCount)
+		for i := 1; i <= tasksCount; i++ {
+			taskID := i
+			switch i {
+			case 5, 10, 15, 20:
+				tasks = append(tasks, func() error {
+					return fmt.Errorf("error in func %v", taskID)
+				})
+			default:
+				tasks = append(tasks, func() error {
+					return nil
+				})
+			}
+		}
+		err := Run(tasks, -1, -1)
+		require.ErrorAs(t, err, &ErrWrongCountOfGoroutines)
+		err = Run(tasks, 5, 0)
+		require.ErrorAs(t, err, &ErrErrorsLimitExceeded)
+		err = Run(tasks, 5, -1)
+		require.ErrorAs(t, err, &ErrErrorsLimitExceeded)
+		err = Run(tasks, 20, 4)
+		require.ErrorAs(t, err, &ErrErrorsLimitExceeded)
+		err = Run(tasks, 20, 5)
+		require.NoError(t, err)
+	})
+
+	t.Run("concurrency test", func(t *testing.T) {
+		var (
+			maxConcurrent int32
+			currentActive int32
+			mu            sync.Mutex
+			taskCount     int
+		)
+
+		// Создаем задачи для отслеживания параллельного выполнения
+		taskCount = 10
+		tasks := make([]Task, taskCount)
+		for i := 0; i < taskCount; i++ {
+			tasks[i] = func() error {
+				// Увеличиваем счетчик активных задач
+				active := atomic.AddInt32(&currentActive, 1)
+				defer atomic.AddInt32(&currentActive, -1)
+
+				// Обновляем максимум
+				mu.Lock()
+				if active > maxConcurrent {
+					maxConcurrent = active
+				}
+				mu.Unlock()
+
+				// Какая-то работа
+				time.Sleep(50 * time.Millisecond)
+				return nil
+			}
+		}
+
+		go func() {
+			_ = Run(tasks, 3, 0)
+		}()
+
+		// Проверяем параллельность. Хотя бы 2 горутины работают одновременно
+		require.Eventually(
+			t,
+			func() bool {
+				mu.Lock()
+				defer mu.Unlock()
+				return maxConcurrent >= 2
+			},
+			500*time.Millisecond,
+			50*time.Millisecond,
+			"Должно работать минимум 2 горутины одновременно",
+		)
 	})
 }
