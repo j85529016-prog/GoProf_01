@@ -145,6 +145,28 @@ func TestAllStageStop(t *testing.T) {
 		wg.Wait()
 
 		require.Len(t, result, 0)
-
 	})
+}
+
+func TestNoStages(t *testing.T) {
+	in := make(Bi)
+	go func() {
+		in <- 1
+		in <- 2
+		close(in)
+	}()
+
+	// done не используем
+	result := make([]int, 0)
+	for v := range ExecutePipeline(in, nil) {
+		result = append(result, v.(int))
+	}
+
+	require.Equal(t, []int{1, 2}, result)
+}
+
+func TestNilInput(t *testing.T) {
+	out := ExecutePipeline(nil, nil)
+	_, ok := <-out
+	require.False(t, ok, "выходной канал должен быть закрыт при nil входе")
 }
