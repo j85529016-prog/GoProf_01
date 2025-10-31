@@ -1,4 +1,4 @@
-module github.com/fixme_my_friend/hw10_program_optimization
+module github.com/j85529016-prog/GoProf_01/hw10_program_optimization
 
 go 1.23
 

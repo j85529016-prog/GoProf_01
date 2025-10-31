@@ -1,0 +1,27 @@
+go test -bench=BenchmarkGetDomainStat -count=5
+goos: windows
+goarch: amd64
+pkg: github.com/j85529016-prog/GoProf_01/hw10_program_optimization
+cpu: 12th Gen Intel(R) Core(TM) i7-1260P
+BenchmarkGetDomainStat-16              2         520296650 ns/op
+BenchmarkGetDomainStat-16              2         670360800 ns/op
+BenchmarkGetDomainStat-16              2         539968500 ns/op
+BenchmarkGetDomainStat-16              3         598449100 ns/op
+BenchmarkGetDomainStat-16              2         523259950 ns/op
+PASS
+ok      github.com/j85529016-prog/GoProf_01/hw10_program_optimization   13.953s
+
+
+
+
+
+go test -v -count=5 -timeout=30s -tags bench .
+=== RUN   TestGetDomainStat_Time_And_Memory
+    stats_optimization_test.go:46: time used: 542.5115ms / 300ms
+    stats_optimization_test.go:47: memory used: 328Mb / 30Mb
+    stats_optimization_test.go:49:
+                Error Trace:    C:/Users/DNSemin/Desktop/WorkFolder/Personaly/Golang/ot/Projects/GoProf_01/hw10_program_optimization/stats_optimization_test.go:49
+                Error:          "542511500" is not less than "300000000"
+                Test:           TestGetDomainStat_Time_And_Memory
+                Messages:       the program is too slow
+--- FAIL: TestGetDomainStat_Time_And_Memory (16.17s)

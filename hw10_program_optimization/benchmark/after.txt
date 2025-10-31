@@ -1,0 +1,38 @@
+go test -bench=BenchmarkGetDomainStat -count=5
+goos: windows
+goarch: amd64
+pkg: github.com/j85529016-prog/GoProf_01/hw10_program_optimization
+cpu: 12th Gen Intel(R) Core(TM) i7-1260P
+BenchmarkGetDomainStat-16              9         117159522 ns/op
+BenchmarkGetDomainStat-16             10         123132190 ns/op
+BenchmarkGetDomainStat-16              9         118653122 ns/op
+BenchmarkGetDomainStat-16              9         117439133 ns/op
+BenchmarkGetDomainStat-16              9         115694989 ns/op
+PASS
+ok      github.com/j85529016-prog/GoProf_01/hw10_program_optimization   9.324s
+
+
+
+
+
+go test -v -count=5 -timeout=30s -tags bench .
+=== RUN   TestGetDomainStat_Time_And_Memory
+    stats_optimization_test.go:46: time used: 121.6724ms / 300ms
+    stats_optimization_test.go:47: memory used: 17Mb / 30Mb
+--- PASS: TestGetDomainStat_Time_And_Memory (1.42s)
+=== RUN   TestGetDomainStat_Time_And_Memory
+    stats_optimization_test.go:46: time used: 129.7655ms / 300ms
+    stats_optimization_test.go:47: memory used: 17Mb / 30Mb
+--- PASS: TestGetDomainStat_Time_And_Memory (1.19s)
+=== RUN   TestGetDomainStat_Time_And_Memory
+    stats_optimization_test.go:47: memory used: 17Mb / 30Mb
+--- PASS: TestGetDomainStat_Time_And_Memory (1.37s)
+=== RUN   TestGetDomainStat_Time_And_Memory
+    stats_optimization_test.go:46: time used: 117.128ms / 300ms
+    stats_optimization_test.go:47: memory used: 17Mb / 30Mb
+--- PASS: TestGetDomainStat_Time_And_Memory (1.32s)
+=== RUN   TestGetDomainStat_Time_And_Memory
+    stats_optimization_test.go:46: time used: 121.7594ms / 300ms
+    stats_optimization_test.go:47: memory used: 17Mb / 30Mb
+--- PASS: TestGetDomainStat_Time_And_Memory (1.35s)
+PASS

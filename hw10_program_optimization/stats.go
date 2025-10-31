@@ -1,66 +1,70 @@
 package hw10programoptimization
 
 import (
-	"encoding/json"
-	"fmt"
+	"bufio"
 	"io"
-	"regexp"
 	"strings"
 )
 
-type User struct {
-	ID       int
-	Name     string
-	Username string
-	Email    string
-	Phone    string
-	Password string
-	Address  string
-}
-
 type DomainStat map[string]int
 
+// extractEmail быстро извлекает email из строки вида {..."Email":"user@domain.ru",...}.
+func extractEmail(s string) string {
+	// Быстро находим `"Email":"`
+	const prefix = `"Email":"`
+	i := strings.Index(s, prefix)
+	if i == -1 {
+		return ""
+	}
+	i += len(prefix)
+
+	// Находим конец значения (закрывающая кавычка, не экранированная)
+	for j := i; j < len(s); j++ {
+		if s[j] == '"' {
+			if j == 0 || s[j-1] != '\\' {
+				return s[i:j]
+			}
+		}
+	}
+	return ""
+}
+
 func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
-	u, err := getUsers(r)
-	if err != nil {
-		return nil, fmt.Errorf("get users error: %w", err)
-	}
-	return countDomains(u, domain)
-}
+	scanner := bufio.NewScanner(r)
+	domainStatResult := make(DomainStat)
+	domainSuffix := "." + domain
+	suffixLen := len(domainSuffix)
 
-type users [100_000]User
-
-func getUsers(r io.Reader) (result users, err error) {
-	content, err := io.ReadAll(r)
-	if err != nil {
-		return
-	}
-
-	lines := strings.Split(string(content), "\n")
-	for i, line := range lines {
-		var user User
-		if err = json.Unmarshal([]byte(line), &user); err != nil {
-			return
-		}
-		result[i] = user
-	}
-	return
-}
-
-func countDomains(u users, domain string) (DomainStat, error) {
-	result := make(DomainStat)
-
-	for _, user := range u {
-		matched, err := regexp.Match("\\."+domain, []byte(user.Email))
-		if err != nil {
-			return nil, err
+	for scanner.Scan() {
+		// Cразу преобразуем строку в string
+		line := scanner.Text()
+		if line == "" {
+			continue
 		}
 
-		if matched {
-			num := result[strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])]
-			num++
-			result[strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])] = num
+		email := extractEmail(line)
+		if email == "" {
+			continue
+		}
+
+		if len(email) < suffixLen {
+			continue
+		}
+
+		// Быстрое сравнение без аллокаций
+		if !strings.EqualFold(email[len(email)-suffixLen:], domainSuffix) {
+			continue
+		}
+
+		// Быстрый split по @
+		if i := strings.IndexByte(email, '@'); i != -1 {
+			domainPart := strings.ToLower(email[i+1:])
+			domainStatResult[domainPart]++
 		}
 	}
-	return result, nil
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return domainStatResult, nil
 }
